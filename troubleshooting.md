@@ -41,3 +41,15 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Retest evidence: `docker compose exec nginx wget -qO- http://app-01:8080/health` returned valid JSON. `curl -i http://127.0.0.1:8080/` returned `200 OK` with expected JSON body and `X-Instance-ID: app-01` header.
 - Related commit: fix: correct nginx upstream port and app bind address
 - Remaining uncertainty: None.
+
+## 04 / 22-09-2026 / 20:45
+- Symptom: `curl /instance` always returned `"instance_id":"app-01"`, even when the request should have hit app-02.
+- Hypothesis: app-02's INSTANCE_ID environment variable was misconfigured to the same value as app-01.
+- Command or test: Inspected the `app-02` service block in `docker-compose.yml`.
+- Actual output: `app-02` had `INSTANCE_ID: "app-01"` under its environment block instead of `"app-02"`.
+- Failed attempt and what changed your thinking: N/A — root cause was visible directly in the compose file once compared line-by-line against app-01's block.
+- Root cause: Copy-paste error in docker-compose.yml — app-02's environment override for INSTANCE_ID was never changed from app-01's value.
+- Fix: Changed `INSTANCE_ID: "app-01"` to `INSTANCE_ID: "app-02"` in the app-02 service block, then ran `up -d --build --force-recreate` to force the env var to be re-injected (a plain restart does not re-read environment values).
+- Retest evidence: Looping curl to `/instance` 8 times returned alternating "app-01"/"app-02" values, confirming both distinct instances are being load-balanced correctly.
+- Related commit: fix: correct duplicate INSTANCE_ID for app-02
+- Remaining uncertainty: One transient 502 appeared on the very first request right after --force-recreate, before containers reached "healthy" — expected startup behavior, not a bug.
