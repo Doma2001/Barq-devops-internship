@@ -77,3 +77,15 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Retest evidence: Created a record ("persistence test", id=3), restarted the postgres container, and GET /records still showed id=3 alongside the original seeded records.
 - Related commit: fix: mount postgres-data volume to the correct PostgreSQL data directory
 - Remaining uncertainty: One transient 502 on the first POST immediately after force-recreate — same known startup-window behavior as before.
+
+## 07 / 22-09-2026 / 21:35
+- Symptom: TASK.md security requirement says only NGINX should be published on the host (port 8080); docker-compose.yml also published PostgreSQL (15432) and Redis (16379) directly to the host.
+- Hypothesis: These extra published ports unnecessarily expose the database and cache to anything on the host machine, bypassing NGINX entirely — a security misconfiguration, not a functional bug.
+- Command or test: Reviewed the `ports:` entries under the postgres and redis services in docker-compose.yml against the requirement in assessment/TASK.md.
+- Actual output: postgres had `ports: ["127.0.0.1:15432:5432"]` and redis had `ports: ["127.0.0.1:16379:6379"]`, both violating the "publish only NGINX" requirement.
+- Failed attempt and what changed your thinking: N/A — this was a direct requirement check, not trial and error.
+- Root cause: Unnecessary `ports:` mappings on postgres and redis services exposed them directly to the host, when internal Docker `networks` (not `ports`) is what actually enables app-01/app-02 to reach them by service name.
+- Fix: Removed the `ports:` entries from both the postgres and redis service blocks in docker-compose.yml. Internal service-to-service communication continues to work via the shared `backend` network.
+- Retest evidence: `docker compose ps -a` showed postgres and redis with no host port mappings (only nginx shows `127.0.0.1:8080->80/tcp`). GET /records and GET /counter both continued to work normally, confirming internal connectivity was unaffected.
+- Related commit: fix: remove unnecessary host port exposure for postgres and redis
+- Remaining uncertainty: None.
