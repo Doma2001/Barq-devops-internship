@@ -89,3 +89,16 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Retest evidence: `docker compose ps -a` showed postgres and redis with no host port mappings (only nginx shows `127.0.0.1:8080->80/tcp`). GET /records and GET /counter both continued to work normally, confirming internal connectivity was unaffected.
 - Related commit: fix: remove unnecessary host port exposure for postgres and redis
 - Remaining uncertainty: None.
+
+## 08 / 22-09-2026 / 21:45
+- Symptom: Dockerfile created a dedicated non-root user (app, uid 10001) and copied files with that ownership, but then set USER root before CMD, so the app process actually ran as root.
+- Hypothesis: The final USER directive overrides the earlier setup, negating the non-root user entirely.
+- Command or test: Reviewed Dockerfile; ran `docker compose exec app-01 whoami` before and after the fix.
+- Actual output: Before fix, `whoami` returned `root`. After changing `USER root` to `USER app` and rebuilding, `whoami` returned `app`.
+- Failed attempt and what changed your thinking: N/A — direct fix once the Dockerfile line was spotted.
+- Root cause: Dockerfile explicitly set `USER root` as the last user directive before CMD, overriding the non-root `app` user created earlier in the same file.
+- Fix: Changed `USER root` to `USER app` in Dockerfile.
+- Retest evidence: `docker compose exec app-01 whoami` returns `app`; app still responds normally on /, /records, /counter after rebuild.
+- Related commit: security: run app container as non-root user
+- Remaining uncertainty: None.
+
