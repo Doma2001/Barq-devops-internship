@@ -65,3 +65,15 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Retest evidence: POST /records returned a new created record (id 3); GET /records returned existing seeded records plus the new one.
 - Related commit: fix: correct DATABASE_URL password and port, REDIS_URL port in config/app.env
 - Remaining uncertainty: One transient 502 occurred immediately after --force-recreate, before healthcheck passed — same expected startup-window behavior seen earlier, not a new bug.
+
+## 06 / 22-09-2026 / 21:20
+- Symptom: Records created via POST /records (e.g. id=3 "test record") disappeared after `docker compose restart postgres`, while the original seeded records (id=1, id=2) survived.
+- Hypothesis: PostgreSQL's actual data directory is not backed by the persistent named volume.
+- Command or test: Inspected the `postgres` service block in docker-compose.yml.
+- Actual output: Found `volumes: [postgres-data:/var/lib/postgresql/backup]` and `tmpfs: [/var/lib/postgresql/data]`. PostgreSQL's real data directory (/var/lib/postgresql/data) was mounted as tmpfs (wiped on restart), while the persistent named volume was bound to an unused path (/backup).
+- Failed attempt and what changed your thinking: N/A — misconfiguration was clear once the two mount paths were compared against PostgreSQL's actual default data directory.
+- Root cause: The named volume `postgres-data` was mounted to `/var/lib/postgresql/backup` (a path PostgreSQL never writes to), while the real data directory `/var/lib/postgresql/data` was mounted as tmpfs, so all writes were lost on every restart.
+- Fix: Removed the `tmpfs: [/var/lib/postgresql/data]` line and changed the named volume mount to `postgres-data:/var/lib/postgresql/data` in docker-compose.yml.
+- Retest evidence: Created a record ("persistence test", id=3), restarted the postgres container, and GET /records still showed id=3 alongside the original seeded records.
+- Related commit: fix: mount postgres-data volume to the correct PostgreSQL data directory
+- Remaining uncertainty: One transient 502 on the first POST immediately after force-recreate — same known startup-window behavior as before.
