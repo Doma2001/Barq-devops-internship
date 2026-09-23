@@ -53,3 +53,15 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Retest evidence: Looping curl to `/instance` 8 times returned alternating "app-01"/"app-02" values, confirming both distinct instances are being load-balanced correctly.
 - Related commit: fix: correct duplicate INSTANCE_ID for app-02
 - Remaining uncertainty: One transient 502 appeared on the very first request right after --force-recreate, before containers reached "healthy" — expected startup behavior, not a bug.
+
+## 05 / 22-09-2026 / 21:10
+- Symptom: All requests to /records and POST /records returned {"error":"postgres_unavailable"}.
+- Hypothesis: DATABASE_URL credentials or connection details don't match what PostgreSQL is actually configured with.
+- Command or test: `docker compose exec app-01 printenv | grep DATABASE_URL`; `grep POSTGRES_ docker-compose.yml`; `cat config/app.env`; direct connection test with `python -c "import psycopg; psycopg.connect(...)"` inside app-01.
+- Actual output: config/app.env had DATABASE_URL password ending in "d" and port 5433, while docker-compose.yml's POSTGRES_PASSWORD ended in "c" and postgres listens on its default port 5432.
+- Failed attempt and what changed your thinking: First fix only corrected the password, left port as 5433 — still failed. Direct psycopg.connect() test with the corrected password AND port 5432 succeeded silently, isolating the port as the remaining issue.
+- Root cause: config/app.env had two wrong values: a mistyped password (vK8d instead of vK8c) and a wrong PostgreSQL port (5433 instead of the actual 5432).
+- Fix: Corrected DATABASE_URL in config/app.env to use password ending "c" and port 5432. (Also corrected REDIS_URL port from 6380 to the actual 6379.)
+- Retest evidence: POST /records returned a new created record (id 3); GET /records returned existing seeded records plus the new one.
+- Related commit: fix: correct DATABASE_URL password and port, REDIS_URL port in config/app.env
+- Remaining uncertainty: One transient 502 occurred immediately after --force-recreate, before healthcheck passed — same expected startup-window behavior seen earlier, not a new bug.
