@@ -33,6 +33,30 @@ deduplication by request_id using a set)
   spaced exactly 5 minutes apart)
 - Time range: 2026-08-20T11:00:00.015Z → 2026-08-20T11:29:57.578Z (~30 minutes)
 
+#for application.log#
+**Q1 (continued) — application.log:**
+- Total lines: 730
+- Valid: 729
+- Malformed: 1 (line with truncated JSON: `{"timestamp":"2026-08-20T11:17:00Z","event":` — cut off before completing, same pattern as the access.log malformed line)
+- True duplicates (same request_id + same event type repeated verbatim): 2
+  (lab-000181, lab-000421 — both "http_request" events on path "/", identical
+  down to the millisecond; consistent with the periodic logging glitch seen in access.log)
+- Note: request_ids appearing twice with DIFFERENT events (e.g. one
+  "dependency_error" + one "http_request" for the same request) are NOT
+  duplicates — they're two distinct log statements the app emits for a single
+  failed request (what went wrong internally, then what was returned to the client)
+#for error.log#
+**01 (continued) — error.log:**
+- Total lines: 68
+- Format: plain nginx error-log text (not JSON), so "malformed" is defined here
+  as a line starting with "[error]" that is missing the expected `request_id=`
+  field, rather than a JSON parse failure
+- Error lines (valid, contain request_id): 67
+- Non-error lines: 1 (`[notice] ... log collector rotated stream` — a routine
+  log-rotation notice, not an actual error)
+- Malformed [error] lines (missing request_id): 0
+- Duplicate request_ids: 0
+
 **02 — Distinct client requests & dedup method:**
 - Distinct request_ids after parsing: 720
 - Deduplication method: iterate all valid lines in order, keep the first
@@ -110,3 +134,15 @@ deduplication by request_id using a set)
 - The logs don't show *why* Redis and Postgres became slow/unreachable at 11:12 and 11:20 — could be resource exhaustion on those containers, network partition, or a connection pool exhaustion in the app. Would need Redis/Postgres's own logs and resource metrics (CPU/memory) from that time window to confirm.
 - The logs don't prove whether the 5 exact-duplicate lines in access.log were an NGINX logging bug or something else — would need NGINX's own internal buffering/config from that deployment to confirm the mechanism.
 - The 502s not covered by a retry (the majority of the 40 total 502s) suggest NGINX's retry policy didn't cover every path/method during the incident — would need the nginx.conf that was active *during* this historical incident (not necessarily the same as the one being fixed today) to confirm proxy_next_upstream/max_fails settings at the time.
+
+
+## Conclusions and limits
+This was not a single failure but a sequence of three distinct incidents in one
+30-minute window: (1) app-02 became fully unreachable for ~5 minutes, partially
+masked by NGINX's automatic retry to app-01; (2) both instances then experienced
+Redis timeouts; (3) both instances then experienced Postgres timeouts; (4) a final
+brief window of slow (not down) responses on both instances. The logs prove the
+symptoms and timing precisely but not the underlying cause of the dependency
+slowdowns — that would require Redis/Postgres server-side logs and resource
+metrics from the same window, which are outside the scope of these three files.
+
