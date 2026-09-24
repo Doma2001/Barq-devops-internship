@@ -54,3 +54,21 @@ logging/monitoring and availability. Separate completed work from planned improv
 - **How to verify:** With app-01 stopped, validate.py shows /ready, /records,
   and /counter all still PASS (confirmed) — only the "both backends serving
   traffic" check fails, as expected since one backend is intentionally down.
+
+## Finding 6: No working backup automation
+- **Risk and evidence:** `backup.sh` and `restore.sh` were placeholder scripts
+  with no real implementation.
+- **Impact:** Even with the persistence fix (Finding 3), there was no way to
+  recover from data corruption, accidental deletion, or full volume loss.
+- **Implemented fix / commit:** Implemented `backup.sh` (pg_dump, plain SQL
+  format, timestamped files in `backups/`) and `restore.sh` (psql restore
+  from a given backup file). Commit: `feat: implement backup.sh and restore.sh,
+  verified against full volume loss`.
+- **Production follow-up:** Automate on a schedule (cron or a sidecar
+  container) and add off-host storage for backups (e.g. object storage),
+  since a local `backups/` folder doesn't survive host loss.
+- **How to verify:** Created a marker record, ran `backup.sh`, destroyed
+  PostgreSQL's volume entirely with `docker compose down -v postgres`,
+  recreated it (fresh/empty), ran `restore.sh` with the backup file, and
+  confirmed `GET /records` returned the marker record exactly as before —
+  proving recovery from total volume loss, not just a container restart.
