@@ -102,3 +102,29 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Related commit: security: run app container as non-root user
 - Remaining uncertainty: None.
 
+## 09 / 22-09-2026 / 22:00
+- Symptom: Running validate.py while app-01 was stopped showed /ready and /records
+  returning 504 Gateway Timeout instead of failing over to app-02 quickly.
+- Hypothesis: NGINX's max_fails=0 (never marks a backend as down) combined with
+  proxy_next_upstream off (never retries a failed request on the other backend)
+  prevents fast failover.
+- Command or test: `docker compose stop app-01` then `python3 validate.py`,
+  compared before/after changing nginx.conf.
+- Actual output: Before fix — /ready and /records returned 504 while app-01 was
+  stopped. After changing max_fails=3 fail_timeout=10s and
+  proxy_next_upstream error timeout http_502 http_504 — same test showed /ready,
+  /records, /counter all PASS (200) immediately, only the "both backends serve
+  traffic" check failed (expected, since app-01 was intentionally stopped).
+- Failed attempt and what changed your thinking: Initially considered
+  max_fails=10, but reasoned that requires 10 consecutive failures before NGINX
+  marks a backend down — too slow. Settled on max_fails=3 as a faster, still-safe threshold.
+- Root cause: max_fails=0 (upstream never marked down) + proxy_next_upstream off
+  (no retry on a different backend for a failed request) meant a stopped backend
+  kept receiving traffic and failed requests were never retried elsewhere.
+- Fix: Set max_fails=3 fail_timeout=10s on both upstream servers in nginx.conf;
+  changed proxy_next_upstream from off to "error timeout http_502 http_504".
+- Retest evidence: validate.py run while app-01 stopped — /ready, /records,
+  /counter all PASS; only the expected "both backends" check failed.
+- Related commit: fix: enable fast NGINX failover (max_fails, proxy_next_upstream)
+- Remaining uncertainty: None.
+
