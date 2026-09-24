@@ -25,9 +25,6 @@ jobs:
       - name: Validate docker-compose syntax
         run: docker compose -p barq-assessment config
 
-      - name: Create env file
-        run: cp .env.example .env 2>/dev/null || true
-
       - name: Build images
         run: docker compose -p barq-assessment build
 
