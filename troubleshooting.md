@@ -128,3 +128,22 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Related commit: fix: enable fast NGINX failover (max_fails, proxy_next_upstream)
 - Remaining uncertainty: None.
 
+
+## 10 / 22-09-2026 / 22:15
+- Symptom: N/A — this was a designed test (failure_test.py), not a bug investigation.
+- Hypothesis: With the NGINX failover fix (max_fails=3, proxy_next_upstream) already
+  in place, stopping app-01 should show zero dropped requests, and app-01 should
+  fully recover after restart.
+- Command or test: `python3 failure_test.py` — 20 requests to GET /records per
+  phase (baseline / during failure / after recovery), each phase 0.2s apart.
+- Actual output: baseline 20/20, during failure 20/20, after recovery 20/20 — 100%
+  success in all three phases. app-01 reported healthy again within the 30s bounded wait.
+- Failed attempt and what changed your thinking: N/A.
+- Root cause: N/A (this is a verification test, not a bug fix).
+- Fix: N/A — this test exists to prove the earlier NGINX failover fix works
+  under a real stop/start cycle, not just the single-snapshot check in validate.py.
+- Retest evidence: Script exited with code 0 and printed "PASS: system stayed
+  available during the outage... and fully recovered afterward."
+- Related commit: feat: implement failure_test.py with baseline/during/recovery
+  measurement and guaranteed cleanup
+- Remaining uncertainty: None.
