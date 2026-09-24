@@ -147,3 +147,28 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Related commit: feat: implement failure_test.py with baseline/during/recovery
   measurement and guaranteed cleanup
 - Remaining uncertainty: None.
+
+## 11 / 24-09-2026 / 18:31
+- Symptom: N/A — designed backup/restore verification test, not a bug investigation.
+- Hypothesis: pg_dump/psql via docker compose exec can fully back up and restore
+  the database even after the underlying named volume is deleted entirely
+  (not just a container restart).
+- Command or test: Created a marker record (id=10), ran backup.sh twice
+  (before and after the marker), destroyed postgres AND its volume with
+  `docker compose down -v postgres`, recreated it with `up -d postgres`,
+  then ran restore.sh with the second backup file.
+- Actual output: After `down -v`, the database started empty (fresh volume).
+  After restore.sh, GET /records returned all 10 original records including
+  id=10, the marker created just before the second backup — an exact match.
+- Failed attempt and what changed your thinking: First restore.sh invocation
+  used literal `<...>` placeholder brackets in the filename argument, which
+  bash interpreted as a redirect operator instead of part of the filename —
+  fixed by passing the real filename with no brackets.
+- Root cause: N/A (verification test).
+- Fix: N/A — confirms backup.sh/restore.sh work correctly even against full
+  volume loss, which is a stronger guarantee than the earlier tmpfs persistence
+  fix (which only survives container restarts, not volume deletion).
+- Retest evidence: GET /records after restore matched pre-disaster state exactly
+  (10/10 records, correct ids and titles).
+- Related commit: feat: implement backup.sh and restore.sh, verified against full volume loss
+- Remaining uncertainty: None.
