@@ -172,3 +172,23 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
   (10/10 records, correct ids and titles).
 - Related commit: feat: implement backup.sh and restore.sh, verified against full volume loss
 - Remaining uncertainty: None.
+
+
+## 12 / 24-09-2026 / 19:00
+- Symptom: N/A — proactive completion of TASK.md requirements not yet
+  implemented (restart policies, resource limits, Redis persistence decision).
+- Hypothesis: N/A.
+- Command or test: Added restart, mem_limit, cpus to all 5 services; added
+  explicit `--save "" --appendonly no` to Redis. Rebuilt and ran validate.py.
+- Actual output: All containers came up healthy; validate.py: 11/11 PASS.
+- Failed attempt and what changed your thinking: N/A.
+- Root cause: N/A.
+- Fix: Added `restart: unless-stopped` + `mem_limit`/`cpus` to nginx, postgres,
+  redis, and the shared `x-app` anchor (app-01/02/03). Added explicit Redis
+  command disabling RDB/AOF persistence.
+- Retest evidence: `docker compose ps -a` shows all 5 containers healthy;
+  validate.py 11/11 PASS after rebuild.
+- Related commit: feat: add restart policies, resource limits, and explicit Redis persistence config
+- Remaining uncertainty: mem_limit values (256m for apps, 512m for postgres,
+  128m for nginx/redis) are reasonable guesses for this lab's light load, not
+  benchmarked against real production traffic.

@@ -83,3 +83,15 @@
 - **Trade-off / limitation:** Anyone forking this repo must manually add the
   same repository secret before CI will pass — slightly more setup friction
   than a self-contained hardcoded value.
+
+## Decision 7: Redis persistence explicitly disabled
+- **Decision:** Redis runs with `--save "" --appendonly no` — no RDB
+  snapshots, no AOF log.
+- **Assumption:** Redis here only backs `/counter`, a non-critical derived
+  value. Losing it on restart just resets a counter to 0, not real data loss.
+- **Alternative considered:** Enable AOF (`--appendonly yes`) for durability.
+  Rejected as unnecessary complexity/overhead for a value that isn't source
+  of truth data (PostgreSQL already holds the real records).
+- **Trade-off / limitation:** If Redis usage grows beyond a simple counter
+  (e.g. session storage, real cached state that's expensive to recompute),
+  this decision would need to be revisited and persistence turned back on.
