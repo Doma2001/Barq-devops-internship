@@ -1,0 +1,19 @@
+01. [ ]  Show the repo, latest commit, and a clean `git status`
+02. [ ]  Start the environment (docker compose up), show all containers healthy
+03. [ ]  Test /, /health, /ready, /records (POST + GET), /counter
+04. [ ]  Call /instance repeatedly, show it alternating between app-01/app-02
+05. [ ]  Stop one backend (docker compose stop app-01), show traffic keeps
+           flowing (+ any errors if they occur), restart it, prove it serves again
+06. [ ]  Create a record, recreate app + postgres containers, prove the
+           record survives
+07. [ ]  Run validate.py and failure_test.py live, show the results
+08. [ ]  Walk through one finding from log_analysis.md (e.g. the 3-phase
+           incident pattern, or the dedup method)
+09. [ ] Run ./video_challenge.sh — for the first time, live, never tested
+10. [ ] Diagnose whichever fault appears (see table below) and fix it —
+            without docker compose down
+11. [ ] Change the public port to 8090 live, prove NGINX works on it
+12. [ ] Add app-03 live, prove all three respond, rerun validate.py
+13. [ ] Run git status, git diff, commit live, show the commit hash
+14. [ ] Push, wrap up
+
