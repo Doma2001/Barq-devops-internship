@@ -63,6 +63,12 @@ services:
       <<: *app-env
       INSTANCE_ID: "app-02"
   nginx:
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
     restart: unless-stopped
     mem_limit: 128m
     cpus: 0.5

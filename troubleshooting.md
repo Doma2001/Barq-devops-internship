@@ -192,3 +192,24 @@ Do not fabricate a failed attempt just to fill the template. Record actual attem
 - Remaining uncertainty: mem_limit values (256m for apps, 512m for postgres,
   128m for nginx/redis) are reasonable guesses for this lab's light load, not
   benchmarked against real production traffic.
+
+## 13  / 25-09-2026
+- Symptom: video_challenge.sh refused to run with "Repair the environment
+  first: every service must be healthy and unpaused", even though all 5
+  containers showed "Up".
+- Hypothesis: One service has no healthcheck defined at all, so Docker
+  reports no Health status for it, which the preflight check treats as
+  not-healthy.
+- Command or test: `docker compose ps -a` — compared the STATUS column
+  across all 5 services.
+- Actual output: app-01, app-02, postgres, redis all showed "(healthy)";
+  nginx showed only "Up 15 minutes" with no health status at all.
+- Failed attempt and what changed your thinking: N/A — comparing the ps -a
+  output side by side made the missing healthcheck obvious immediately.
+- Root cause: docker-compose.yml never defined a `healthcheck:` for the
+  nginx service.
+- Fix: Added a wget-based healthcheck to nginx (Alpine's BusyBox wget hitting
+  a local endpoint).
+- Retest evidence: `docker compose ps -a` shows nginx as "(healthy)" after rebuild.
+- Related commit: fix: add missing healthcheck to nginx service
+- Remaining uncertainty: None.
